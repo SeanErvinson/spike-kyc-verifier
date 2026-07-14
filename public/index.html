@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KYC Verifier</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f4f5f7; margin: 0; padding: 2rem; }
+    h1 { font-size: 1.3rem; } h1 span { color: #6b7280; font-weight: 400; font-size: 0.9rem; }
+    .empty { color: #6b7280; padding: 2rem; text-align: center; }
+    .card { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.12);
+            padding: 1rem 1.25rem; margin-bottom: 1rem; max-width: 560px; }
+    .card h2 { font-size: 1.05rem; margin: 0 0 .25rem; }
+    .meta { color: #6b7280; font-size: .82rem; margin-bottom: .6rem; }
+    dl { display: grid; grid-template-columns: 110px 1fr; gap: .15rem .75rem; font-size: .9rem; margin: 0 0 .9rem; }
+    dt { color: #6b7280; } dd { margin: 0; word-break: break-word; }
+    button { border: 0; border-radius: 6px; padding: .55rem 1.1rem; font-size: .9rem; cursor: pointer; margin-right: .5rem; }
+    .approve { background: #16a34a; color: #fff; } .decline { background: #dc2626; color: #fff; }
+    button:disabled { opacity: .5; cursor: wait; }
+    .error { color: #dc2626; font-size: .85rem; margin-top: .5rem; }
+  </style>
+</head>
+<body>
+  <h1>KYC Verifier <span>— external verification party (spike)</span></h1>
+  <div id="list" class="empty">Loading…</div>
+  <script>
+    async function refresh() {
+      const list = document.getElementById('list');
+      try {
+        const items = await (await fetch('/api/pending')).json();
+        if (!items.length) {
+          list.className = 'empty';
+          list.textContent = 'No pending verifications';
+          return;
+        }
+        list.className = '';
+        list.innerHTML = items.map(item => {
+          const c = item.customer ?? {};
+          const name = [c.firstName, c.lastName].filter(Boolean).join(' ') || '(no name)';
+          return `<div class="card" id="card-${item.runId}">
+            <h2>${name}</h2>
+            <div class="meta">Run #${item.runId} · received ${new Date(item.receivedAt).toLocaleTimeString()}</div>
+            <dl>
+              <dt>Email</dt><dd>${c.email ?? '—'}</dd>
+              <dt>Phone</dt><dd>${c.mobile ?? c.phone ?? '—'}</dd>
+              <dt>Date of birth</dt><dd>${c.dateOfBirth ?? '—'}</dd>
+            </dl>
+            <button class="approve" onclick="decide(${item.runId}, 'approved')">Approve</button>
+            <button class="decline" onclick="decide(${item.runId}, 'declined')">Decline</button>
+            <div class="error" id="err-${item.runId}"></div>
+          </div>`;
+        }).join('');
+      } catch {
+        list.className = 'empty';
+        list.textContent = 'Cannot reach verifier server';
+      }
+    }
+
+    async function decide(runId, outcome) {
+      document.querySelectorAll(`#card-${runId} button`).forEach(b => b.disabled = true);
+      const reason = outcome === 'declined' ? 'Manual review declined the applicant' : null;
+      const res = await fetch('/api/decide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ runId, outcome, reason }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        document.getElementById(`err-${runId}`).textContent = body.error ?? `HTTP ${res.status}`;
+        document.querySelectorAll(`#card-${runId} button`).forEach(b => b.disabled = false);
+        return;
+      }
+      refresh();
+    }
+
+    refresh();
+    setInterval(refresh, 3000);
+  </script>
+</body>
+</html>
