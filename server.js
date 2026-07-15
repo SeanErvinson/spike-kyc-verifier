@@ -8,6 +8,11 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
+// Extra headers for the callback POST, for when the ROLLER API sits behind an auth wall
+// (Cloudflare Access service token, basic-auth tunnel, gateway key). JSON object, e.g.
+// CALLBACK_HEADERS='{"CF-Access-Client-Id":"...","CF-Access-Client-Secret":"..."}'
+const callbackHeaders = JSON.parse(process.env.CALLBACK_HEADERS ?? '{}');
+
 /** @type {Map<number, {runId: number, resumeToken: string, callbackUrl: string, customer: object, receivedAt: string}>} */
 const pending = new Map();
 
@@ -39,7 +44,7 @@ app.post('/api/decide', async (req, res) => {
   try {
     const response = await fetch(item.callbackUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...callbackHeaders },
       body: JSON.stringify({
         resumeToken: item.resumeToken,
         outputPort: outcome,
