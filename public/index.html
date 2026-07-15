@@ -17,8 +17,11 @@
     dl { display: grid; grid-template-columns: 110px 1fr; gap: .15rem .75rem; font-size: .9rem; margin: 0 0 .9rem; }
     dt { color: #6b7280; } dd { margin: 0; word-break: break-word; }
     button { border: 0; border-radius: 6px; padding: .55rem 1.1rem; font-size: .9rem; cursor: pointer; margin-right: .5rem; }
-    .approve { background: #16a34a; color: #fff; } .decline { background: #dc2626; color: #fff; }
+    .low { background: #16a34a; color: #fff; } .medium { background: #d97706; color: #fff; } .high { background: #dc2626; color: #fff; }
     button:disabled { opacity: .5; cursor: wait; }
+    .reason { display: block; width: 100%; box-sizing: border-box; margin-bottom: .75rem; padding: .5rem .6rem;
+              border: 1px solid #d1d5db; border-radius: 6px; font-size: .88rem; font-family: inherit; }
+    .reason:focus { outline: 2px solid #090c1b33; border-color: #090c1b; }
     .error { color: #dc2626; font-size: .85rem; margin-top: .5rem; }
   </style>
 </head>
@@ -53,8 +56,10 @@
               <dt>Phone</dt><dd>${c.mobile ?? c.phone ?? '—'}</dd>
               <dt>Date of birth</dt><dd>${c.dateOfBirth ?? '—'}</dd>
             </dl>
-            <button class="approve" onclick="decide(${item.runId}, 'approved')">Approve</button>
-            <button class="decline" onclick="decide(${item.runId}, 'declined')">Decline</button>
+            <input class="reason" id="reason-${item.runId}" type="text" placeholder="Reason code, e.g. sanctions list match (optional)" />
+            <button class="low" onclick="decide(${item.runId}, 'low')">Low risk</button>
+            <button class="medium" onclick="decide(${item.runId}, 'medium')">Medium risk</button>
+            <button class="high" onclick="decide(${item.runId}, 'high')">High risk</button>
             <div class="error" id="err-${item.runId}"></div>
           </div>`;
         }).join('');
@@ -66,7 +71,7 @@
 
     async function decide(runId, outcome) {
       document.querySelectorAll(`#card-${runId} button`).forEach(b => b.disabled = true);
-      const reason = outcome === 'declined' ? 'Manual review declined the applicant' : null;
+      const reason = document.getElementById(`reason-${runId}`).value.trim() || `Sardine rated this guest ${outcome} risk`;
       const res = await fetch('/api/decide', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -26,15 +26,15 @@ app.get('/api/pending', (_req, res) => {
   res.json([...pending.values()].map(({ resumeToken, callbackUrl, ...item }) => item));
 });
 
-// The human clicked Approve/Decline — resume the parked workflow run.
+// The human rated the guest's risk — resume the parked workflow run through that port.
 app.post('/api/decide', async (req, res) => {
   const { runId, outcome, reason } = req.body ?? {};
   const item = pending.get(runId);
   if (!item) {
     return res.status(404).json({ error: `no pending verification for run ${runId}` });
   }
-  if (outcome !== 'approved' && outcome !== 'declined') {
-    return res.status(400).json({ error: "outcome must be 'approved' or 'declined'" });
+  if (!['low', 'medium', 'high'].includes(outcome)) {
+    return res.status(400).json({ error: "outcome must be 'low', 'medium' or 'high'" });
   }
   try {
     const response = await fetch(item.callbackUrl, {
@@ -43,7 +43,7 @@ app.post('/api/decide', async (req, res) => {
       body: JSON.stringify({
         resumeToken: item.resumeToken,
         outputPort: outcome,
-        output: { approved: outcome === 'approved', reason: reason ?? null },
+        output: { riskLevel: outcome, reason: reason ?? null },
       }),
     });
     if (!response.ok) {
@@ -51,7 +51,7 @@ app.post('/api/decide', async (req, res) => {
       return res.status(502).json({ error: `callback returned HTTP ${response.status}` });
     }
     pending.delete(runId);
-    console.log(`[decide] run ${runId} ${outcome}`);
+    console.log(`[decide] run ${runId} rated ${outcome} risk`);
     res.json({ ok: true });
   } catch (err) {
     console.error(`[decide] callback for run ${runId} failed: ${err.message}`);
