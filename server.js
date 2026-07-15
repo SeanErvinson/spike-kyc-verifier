@@ -1,4 +1,4 @@
-// Fenergo (mock) — hackathon spike. Plays the external KYC party for the ROLLER
+// Sardine (mock) — hackathon spike. Plays the external KYC party for the ROLLER
 // workflow engine's action.kyc.verify node. Everything is in-memory.
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // callback target is roller.local (self-signed cert)
 
@@ -60,4 +60,4 @@ app.post('/api/decide', async (req, res) => {
 });
 
 const port = process.env.PORT ?? 4600;
-app.listen(port, () => console.log(`Fenergo mock verifier listening on http://localhost:${port}`));
+app.listen(port, () => console.log(`Sardine mock verifier listening on http://localhost:${port}`));
